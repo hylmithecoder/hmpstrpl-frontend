@@ -83,10 +83,18 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
 
     // Click-to-reveal overlay images (markdown `{overlay ...}` attribute):
     // each click reveals the next overlay before the slide advances.
-    // Skipped entirely on mobile — the fixed positions don't fit small screens.
-    const [revealCount, setRevealCount] = useState(0);
+    // `{overlay mobile}` renders only on mobile; without the flag, desktop-only.
+    // Reveal state is bound to the slide it was made on: `revealCount` derives to 0
+    // the instant slideIndex changes, so a stale count can never flash the next
+    // slide's stickers during the transition (no useEffect reset lag).
+    const [reveal, setReveal] = useState({ slide: 0, count: 0 });
+    const revealCount = reveal.slide === slideIndex ? reveal.count : 0;
     const [isMobile, setIsMobile] = useState(false);
-    const activeOverlayCount = (!isMobile && activeSlide) ? activeSlide.images.filter(img => img.overlay).length : 0;
+    const overlayMatchesDevice = (img: { overlay?: boolean; mobile?: boolean }) =>
+        !!img.overlay && (isMobile ? img.mobile === true : img.mobile !== true);
+    const activeOverlayCount = activeSlide
+        ? activeSlide.images.filter(overlayMatchesDevice).length
+        : 0;
 
     useEffect(() => {
         const mediaQuery = window.matchMedia('(max-width: 767px)');
@@ -96,9 +104,10 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
         return () => mediaQuery.removeEventListener('change', update);
     }, []);
 
+    // Device switch (resize past 768px) invalidates the current reveal progress
     useEffect(() => {
-        setRevealCount(0);
-    }, [slideIndex]);
+        setReveal(prev => ({ ...prev, count: 0 }));
+    }, [isMobile]);
 
     // Fetch posts for the blog slide
     useEffect(() => {
@@ -115,7 +124,7 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
     // Navigation helpers (reveal pending overlays before moving between slides)
     const goToNextSlide = () => {
         if (revealCount < activeOverlayCount) {
-            setRevealCount(prev => prev + 1);
+            setReveal({ slide: slideIndex, count: revealCount + 1 });
             return;
         }
         setSlideIndex(prev => Math.min(prev + 1, slides.length - 1));
@@ -123,7 +132,7 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
 
     const goToPreviousSlide = () => {
         if (revealCount > 0) {
-            setRevealCount(prev => prev - 1);
+            setReveal({ slide: slideIndex, count: revealCount - 1 });
             return;
         }
         setSlideIndex(prev => Math.max(prev - 1, 0));
@@ -203,14 +212,15 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
                                 visibility: Math.abs(dx) <= 1 && Math.abs(dy) <= 1 ? 'visible' : 'hidden'
                             }}
                         >
-                            {/* Click-to-reveal overlay images, positioned via markdown {overlay top=… left=…} */}
-                            {s.images.filter(img => img.overlay).map((img, overlayIdx) => {
+                            {/* Click-to-reveal overlay images, positioned via markdown {overlay top=… left=…}.
+                                Filtered per device so overlayIdx lines up with revealCount/activeOverlayCount. */}
+                            {s.images.filter(overlayMatchesDevice).map((img, overlayIdx) => {
                                 const revealed = isActive && overlayIdx < revealCount;
                                 const { rotate, width, radius, ...placement } = img.position ?? {};
                                 return (
                                     <div
                                         key={`overlay-${overlayIdx}`}
-                                        className="hidden md:block absolute z-40 pointer-events-none transition-all duration-500 ease-out drop-shadow-2xl"
+                                        className={`${img.mobile ? 'block md:hidden' : 'hidden md:block'} absolute z-40 pointer-events-none transition-all duration-500 ease-out drop-shadow-2xl`}
                                         style={{
                                             ...placement,
                                             width: width || '240px',

@@ -11,3 +11,5 @@ id: visi-misi
 ![ok bang](/meme3.jpeg){overlay top=30% left=76% width=180px rotate=+4deg}
 
 ![terbaik](/meme4.jpeg){overlay top=63% left=76% width=180px rotate=-8deg}
+
+![A good prodi can change your life](/meme.png){overlay top=75% left=33% width=180px rotate=-4deg radius=10px mobile=true}

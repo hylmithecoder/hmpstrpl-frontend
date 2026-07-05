@@ -8,6 +8,8 @@ export interface SlideImage {
     alt: string;
     // Overlay images pop in one-by-one on click before the slide advances.
     overlay?: boolean;
+    // If true, this overlay only renders on mobile screens; otherwise desktop-only.
+    mobile?: boolean;
     // CSS placement parsed from the {top=… left=… width=… rotate=…} suffix.
     position?: Partial<Record<SlidePositionKey, string>>;
 }
@@ -59,6 +61,10 @@ function parseSlide(raw: string, fallbackId: string): SlideData {
                 img[3].trim().split(/\s+/).forEach(token => {
                     if (token === 'overlay') {
                         image.overlay = true;
+                        return;
+                    }
+                    if (token === 'mobile' || token === 'mobile=true') {
+                        image.mobile = true;
                         return;
                     }
                     const [key, value] = token.split('=');
