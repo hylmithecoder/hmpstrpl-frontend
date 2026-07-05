@@ -1,0 +1,21 @@
+{
+  "name": "HMPS TRPL Politeknik Negeri Medan",
+  "short_name": "HMPS TRPL",
+  "description": "Himpunan Mahasiswa Program Studi Teknologi Rekayasa Perangkat Lunak Politeknik Negeri Medan",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1e40af",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/hmpstrpl.webp",
+      "sizes": "512x512",
+      "type": "image/webp"
+    }
+  ]
+}

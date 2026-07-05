@@ -16,6 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HMPS TRPL Politeknik Negeri Medan",
   description: "Himpunan Mahasiswa Program Studi Teknologi Rekayasa Perangkat Lunak Politeknik Negeri Medan",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
