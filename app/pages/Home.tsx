@@ -714,7 +714,7 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
                                                         className="flex flex-col gap-3 h-full justify-between font-sans min-w-0 overflow-hidden"
                                                     >
                                                         {getPostThumbnail(post) && (
-                                                            <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-border bg-muted/20">
+                                                            <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-border bg-muted/20 md:hidden">
                                                                 <img
                                                                     src={getPostThumbnail(post)!}
                                                                     alt={post.title}
