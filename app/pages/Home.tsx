@@ -16,7 +16,7 @@ import {
     SegmentedControl,
     SegmentedControlItem
 } from '@astryxdesign/core';
-import { apiFetch, mockPosts, type Post } from '../utils/api';
+import { apiFetch, mockPosts, getPostThumbnail, type Post } from '../utils/api';
 import type { SlideData } from '../utils/slides';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -713,6 +713,15 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
                                                         padding={5}
                                                         className="flex flex-col gap-3 h-full justify-between font-sans"
                                                     >
+                                                        {getPostThumbnail(post) && (
+                                                            <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-border bg-muted/20">
+                                                                <img
+                                                                    src={getPostThumbnail(post)!}
+                                                                    alt={post.title}
+                                                                    className="w-full h-full object-cover"
+                                                                />
+                                                            </div>
+                                                        )}
                                                         <VStack gap={3} align="start">
                                                             <HStack justify="between" align="center" className="w-full">
                                                                 <Badge variant="blue" label={post.category?.name || 'Berita'} />
