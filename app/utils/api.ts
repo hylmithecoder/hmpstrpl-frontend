@@ -90,8 +90,8 @@ export interface ApiResponse<T> {
   data: T;
 }
 
-const API_BASE_URL = 'http://localhost:5000/api/v1';
-export const API_ORIGIN = process.env.API_URL || 'http://localhost:5000';
+export const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN || 'http://localhost:5000';
+const API_BASE_URL = `${API_ORIGIN}/api/v1`;
 
 // One section of a post body. Post.body stores JSON: [{ "content": "<p>…</p>", "file": ["url", …] }]
 export interface PostSection {
