@@ -1,26 +1,131 @@
-@import "tailwindcss";
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities;
 
-:root {
-  --background: #ffffff;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import '@astryxdesign/core/reset.css';
+@import '@astryxdesign/core/astryx.css';
+@import '@astryxdesign/theme-neutral/theme.css';
+@import '@astryxdesign/core/tailwind-theme.css';
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('/ttf/MiSansLatin-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('/ttf/MiSansLatin-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('/ttf/MiSansLatin-Semibold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'MiSans';
+  src: url('/ttf/MiSansLatin-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root,
+[data-astryx-theme="neutral"] {
+  --background: #f9f9fb;
   --foreground: #171717;
+
+  --color-accent: #2c78aa !important;
+  --color-text-accent: #2c78aa !important;
+  --color-accent-muted: #f4f8fa !important;
+
+  --color-background-body: #f9f9fb !important;
+  --color-background-surface: #ffffff !important;
+  --color-background-card: #ffffff !important;
+  --color-background-muted: #f3f3f5 !important;
+  --color-border: #e6e6e9 !important;
+
+  /* Astryx Font Family mappings */
+  --font-family-body: 'MiSans', sans-serif;
+  --font-family-heading: 'MiSans', sans-serif;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'MiSans', var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
+
+  :root,
+  [data-astryx-theme="neutral"] {
+    --background: #1b1b1b;
     --foreground: #ededed;
+
+    --color-accent: #2c78aa !important;
+    --color-text-accent: #2c78aa !important;
+    --color-accent-muted: rgba(44, 120, 170, 0.15) !important;
+
+    --color-background-body: #1b1b1b !important;
+    --color-background-surface: #222222 !important;
+    --color-background-card: #222222 !important;
+    --color-background-muted: #272727 !important;
+    --color-border: #333333 !important;
   }
+}
+
+/* Force dark mode class overrides */
+[data-astryx-theme="neutral"][data-theme="dark"],
+[data-astryx-theme="neutral"].dark,
+.dark [data-astryx-theme="neutral"],
+[data-astryx-theme="neutral"][data-theme-mode="dark"] {
+  --background: #1b1b1b;
+  --foreground: #ededed;
+
+  --color-accent: #2c78aa !important;
+  --color-text-accent: #2c78aa !important;
+  --color-accent-muted: rgba(44, 120, 170, 0.15) !important;
+
+  --color-background-body: #1b1b1b !important;
+  --color-background-surface: #222222 !important;
+  --color-background-card: #222222 !important;
+  --color-background-muted: #272727 !important;
+  --color-border: #333333 !important;
+}
+
+/* Force light mode class overrides */
+[data-astryx-theme="neutral"][data-theme="light"],
+[data-astryx-theme="neutral"].light,
+.light [data-astryx-theme="neutral"],
+[data-astryx-theme="neutral"][data-theme-mode="light"] {
+  --background: #f9f9fb;
+  --foreground: #171717;
+
+  --color-accent: #2c78aa !important;
+  --color-text-accent: #2c78aa !important;
+  --color-accent-muted: #f4f8fa !important;
+
+  --color-background-body: #f9f9fb !important;
+  --color-background-surface: #ffffff !important;
+  --color-background-card: #ffffff !important;
+  --color-background-muted: #f3f3f5 !important;
+  --color-border: #e6e6e9 !important;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'MiSans', sans-serif;
 }
