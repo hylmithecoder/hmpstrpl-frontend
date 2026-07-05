@@ -703,7 +703,7 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
                                                 <Spinner size="lg" />
                                             </div>
                                         ) : posts.length > 0 ? (
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden">
                                                 {posts.slice(0, isMobile ? 1 : 3).map((post) => (
                                                     <ClickableCard
                                                         key={post.id}
@@ -711,7 +711,7 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
                                                         href={`/blog/${post.slug}`}
                                                         variant="default"
                                                         padding={5}
-                                                        className="flex flex-col gap-3 h-full justify-between font-sans"
+                                                        className="flex flex-col gap-3 h-full justify-between font-sans min-w-0 overflow-hidden"
                                                     >
                                                         {getPostThumbnail(post) && (
                                                             <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-border bg-muted/20">
