@@ -29,7 +29,7 @@ export default function LoginPage() {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('hmps_auth_token');
       if (token) {
-        router.push('/admin');
+        router.push('/dashboard');
       }
     }
   }, [router]);
@@ -52,7 +52,7 @@ export default function LoginPage() {
       // Save JWT token and user info
       localStorage.setItem('hmps_auth_token', result.data.token);
       localStorage.setItem('hmps_auth_user', JSON.stringify(result.data.user));
-      
+
       setBannerStatus('success');
       setBannerMsg(result.message);
 
@@ -60,7 +60,7 @@ export default function LoginPage() {
       window.dispatchEvent(new Event('storage'));
 
       // Redirect to admin dashboard
-      router.push('/admin');
+      router.push('/dashboard');
     } else {
       setBannerStatus('error');
       setBannerMsg(result.message);
@@ -73,7 +73,7 @@ export default function LoginPage() {
 
       <main className="flex-1 flex items-center justify-center px-6 py-16">
         <VStack gap={6} align="stretch" className="w-full max-w-md">
-          
+
           {/* Header Description */}
           <div className="text-center">
             <Badge variant="blue" label="Keamanan Situs" />
@@ -106,7 +106,7 @@ export default function LoginPage() {
                 isRequired={true}
                 placeholder="admin@hmpstrpl.com"
               />
-              
+
               <TextInput
                 label="Kata Sandi"
                 type="password"
@@ -116,7 +116,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
 
-              <div className="pt-2">
+              <div className="pt-2 justify-center flex">
                 <Button
                   type="submit"
                   variant="primary"
@@ -127,14 +127,6 @@ export default function LoginPage() {
               </div>
             </form>
           </Card>
-
-          {/* Quick info tip */}
-          <Card variant="muted" padding={4} className="text-center">
-            <Text type="supporting" color="secondary" className="text-xs font-sans leading-relaxed">
-              Petunjuk Offline: Gunakan email <code className="font-mono bg-surface px-1 py-0.5 rounded border border-border text-accent">admin@hmpstrpl.com</code> dan sandi <code className="font-mono bg-surface px-1 py-0.5 rounded border border-border text-accent">admin</code> jika database API sedang offline.
-            </Text>
-          </Card>
-
         </VStack>
       </main>
 

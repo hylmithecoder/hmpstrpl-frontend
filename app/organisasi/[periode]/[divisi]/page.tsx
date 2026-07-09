@@ -13,9 +13,21 @@ import {
   Divider
 } from '@astryxdesign/core';
 import { apiFetch, resolvePhoto, type Member } from '../../../utils/api';
+import type { Metadata } from 'next';
 
 interface PageProps {
   params: Promise<{ periode: string; divisi: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { periode, divisi } = await params;
+  const aliasDisplay = divisi.length <= 4
+    ? divisi.toUpperCase()
+    : divisi.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return {
+    title: `${aliasDisplay} HMPS TRPL Politeknik Negeri Medan`,
+    description: `Struktur anggota ${aliasDisplay} HMPS TRPL Politeknik Negeri Medan periode ${periode}.`,
+  };
 }
 
 export default async function DivisiDetailPage({ params }: PageProps) {
@@ -34,9 +46,13 @@ export default async function DivisiDetailPage({ params }: PageProps) {
   const startYear = members[0]?.managementyear?.start_year ?? slugStart;
   const endYear = members[0]?.managementyear?.end_year ?? slugEnd;
 
-  // Division title: API name, or prettified slug ("ilmu-pengetahun-dan-teknologi" → "Ilmu Pengetahun Dan Teknologi")
-  const prettySlug = divisi.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  const divisionName = members[0]?.division?.name || prettySlug;
+  // Division title: use alias (short name) for heading, full name for subtitle
+  const alias = members[0]?.division?.alias || divisi;
+  const aliasDisplay = alias.length <= 4
+    ? alias.toUpperCase()
+    : alias.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const divisionName = aliasDisplay;
+  const divisionFullName = members[0]?.division?.name || null;
 
   const isPH = divisi.toLowerCase() === 'ph' || divisi.toLowerCase() === 'bph' || divisi.toLowerCase().includes('pengurus-harian');
   const divisionDesc = isPH
@@ -63,12 +79,9 @@ export default async function DivisiDetailPage({ params }: PageProps) {
           {/* Division Header Banner */}
           <VStack gap={2} align="center">
             <Badge variant="blue" label={`Periode ${startYear}/${endYear}`} />
-            <Heading level={1} type="display-1" className="text-primary font-sans leading-tight mt-1">
-              {divisionName}
+            <Heading level={1} type="display-1" justify='center' className="text-primary font-sans leading-tight mt-1">
+              Divisi {divisionName} HMPS Teknologi Rekayasa Perangkat Lunak {startYear}/{endYear}
             </Heading>
-            <Text type="body" color="secondary" className="font-sans leading-relaxed text-justify max-w-2xl mt-1">
-              {divisionDesc}
-            </Text>
           </VStack>
 
           {/* Members Roster List */}
@@ -79,9 +92,10 @@ export default async function DivisiDetailPage({ params }: PageProps) {
             <Divider />
 
             {members.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="flex flex-wrap justify-center gap-6">
+                {/* Force 3-per-row on desktop by sizing each card */}
                 {members.map((member) => (
-                  <Card key={member.uuid} variant="default" padding={5} className="flex flex-col justify-between">
+                  <Card key={member.uuid} variant="default" padding={5} className="flex flex-col justify-between w-full md:flex-[0_0_calc(33.333%-1rem)]">
                     <VStack gap={4} align="start">
                       <VStack gap={3} align="center" className="w-full text-center">
                         <Avatar name={member.name} size={128} src={resolvePhoto(member.photo)} />
@@ -144,7 +158,7 @@ export default async function DivisiDetailPage({ params }: PageProps) {
                     Divisi tidak ditemukan.
                   </Text>
                   <Text type="body" color="secondary" className="font-sans">
-                    Divisi &ldquo;{prettySlug}&rdquo; tidak terdaftar pada periode {startYear}/{endYear}, atau belum memiliki anggota.
+                    Divisi &ldquo;{divisionName}&rdquo; tidak terdaftar pada periode {startYear}/{endYear}, atau belum memiliki anggota.
                   </Text>
                 </VStack>
               </div>

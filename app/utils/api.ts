@@ -13,6 +13,11 @@ export interface Tag {
   posts_count?: number;
 }
 
+export interface Role {
+  id?: number;
+  name: string;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -20,6 +25,7 @@ export interface User {
   username: string;
   bio?: string;
   userimg?: string;
+  roles?: (Role | string)[];
 }
 
 export interface Post {
@@ -252,6 +258,10 @@ export const mockUser: User = {
   bio: 'Akun resmi kepengurusan Himpunan Mahasiswa Program Studi TRPL.',
   userimg: ''
 };
+
+export const mockUsers: User[] = [
+  { ...mockUser, roles: [{ name: 'admin' }] }
+];
 
 export const mockPosts: Post[] = [
   {

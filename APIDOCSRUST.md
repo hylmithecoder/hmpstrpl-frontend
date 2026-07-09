@@ -72,6 +72,7 @@ Missing or wrong headers return `401`.
 | GET | `/api/v1/author/{username}` | Author info + their published posts (paginated) |
 | GET | `/api/v1/search?q=` | Search published posts by title/body (paginated) |
 | POST | `/api/v1/contact` | Submit a contact message |
+| GET | `/api/v1/graduations/check?nim=&managementyear_id=` | Check graduation by NIM and period |
 | POST | `/api/v1/auth/login` | Login → `{ user, token }` |
 | POST | `/api/v1/auth/register` | Register → `{ user, token }` (201) |
 
@@ -124,6 +125,18 @@ Aggregate counts for the admin dashboard (shape matches the frontend
 
 `totalInbox` = contacts count. `activePeriod` = slug of the most recent
 management year.
+
+### Graduations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/graduations` | List all graduations (with `managementyear`, `division`) |
+| POST | `/api/v1/admin/graduations` | Create graduation |
+| GET | `/api/v1/admin/graduations/{id}` | Show graduation |
+| PUT | `/api/v1/admin/graduations/{id}` | Update graduation |
+| DELETE | `/api/v1/admin/graduations/{id}` | Delete graduation |
+
+Body: `nim`* (10 digits), `name`*, `managementyear_id`*, `division_id`*, `role`, `accepted` (boolean). When `division_id` is supplied, `division` and `alias` are auto-filled from the divisions table.
 
 ### Auth
 
@@ -331,18 +344,25 @@ Wrong current password → `422`.
 
 ## Implementation notes
 
-- **Verbose logging.** Every request is logged to stdout (ANSI-colored) and
-  appended to `storage/logs/api.log`: request line, headers (bearer tokens
-  redacted), body fields (passwords redacted), file uploads, every SQL
-  statement, and the response status + timing.
+- **Verbose logging.** Every request is logged to **stdout** (ANSI-colored)
+  only — no log file is written, so nothing accumulates on disk. It includes the
+  request line, headers (bearer tokens redacted), body fields (passwords
+  redacted), file uploads, every SQL statement, and the response status +
+  timing. Redirect stdout yourself (`cargo run > out.log`) if you need a
+  persisted trace.
 - **Uploads** are stored under `storage/app/public/<subdir>/` (`img/posts`,
   `img/pages`, `img/members`, `img/avatars`, `img/media`); only the basename is
   persisted in the DB.
+- **Static assets.** Uploaded files are served at the server root under
+  `GET /storage/<path>` → `storage/app/public/<path>` (Laravel public-disk
+  convention, *outside* the `/api/v1` prefix). Example:
+  `http://localhost:5000/storage/img/members/1699999999_ab12cd34ef.jpg`.
+  Content-Type is inferred from the extension; path traversal is rejected (403).
 - **Schema fidelity.** The live MySQL schema is authoritative. Fields present in
   the PHP models but absent from the DB are accepted but not stored:
-  `hmpstrpl_members.{nim,phone,email,address,bio}`,
   `posts_categories.description`, `contacts.phone`. `tags.description` is
   `NOT NULL` with no default, so tag creation writes an empty string.
+  `hmpstrpl_members.nim` is now stored (added in 2026 migration).
 - **Source layout:** see `README.md`.
 
 ## Default admin user

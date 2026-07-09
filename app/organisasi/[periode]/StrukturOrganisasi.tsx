@@ -172,8 +172,8 @@ export default function StrukturOrganisasi({ periode, years, structure }: Strukt
                                     )}
                                     <div className={kadiv ? 'lg:col-span-3' : 'lg:col-span-4'}>
                                         {staff.length > 0 ? (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                                {staff.map((m) => <MemberCard key={m.uuid} member={m} />)}
+                                            <div className="flex flex-wrap justify-center gap-4">
+                                                {staff.map((m) => <div key={m.uuid} className="w-full md:flex-[0_0_calc(33.333%-1rem)]"><MemberCard member={m} /></div>)}
                                             </div>
                                         ) : (
                                             <div className="flex items-center justify-center p-6 border border-dashed border-border rounded-xl h-full bg-muted/10">
