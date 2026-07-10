@@ -100,8 +100,14 @@ export default function AdminDashboardPage() {
                 const statsData = await apiAdminFetch<AdminStats>('/admin/stats', mockAdminStats);
                 setStats(statsData);
 
-                const postsData = await apiFetch<Post[]>('/posts', mockPosts);
-                setPosts(Array.isArray(postsData) ? postsData : []);
+                const postsData = await apiFetch<Post[] | { data: Post[] }>('/posts', mockPosts);
+                setPosts(
+                    Array.isArray(postsData)
+                        ? postsData
+                        : Array.isArray((postsData as { data: Post[] }).data)
+                            ? (postsData as { data: Post[] }).data
+                            : []
+                );
 
                 const allMembers: Member[] = [];
                 Object.keys(mockStrukturOrganisasi).forEach(yearSlug => {
