@@ -73,6 +73,8 @@ Missing or wrong headers return `401`.
 | GET | `/api/v1/search?q=` | Search published posts by title/body (paginated) |
 | POST | `/api/v1/contact` | Submit a contact message |
 | GET | `/api/v1/graduations/check?nim=&managementyear_id=` | Check graduation by NIM and period |
+| GET | `/api/v1/instagram/feed` | Instagram media feed (`?limit=12&type=all\|reels\|image`, 15-min cache) |
+| GET | `/api/v1/instagram/feed/{id}` | Single Instagram media post detail |
 | POST | `/api/v1/auth/login` | Login → `{ user, token }` |
 | POST | `/api/v1/auth/register` | Register → `{ user, token }` (201) |
 
@@ -324,6 +326,33 @@ Wrong current password → `422`.
 | POST | `/api/v1/admin/authorization/permissions` | Create permission (`name`*, min 3) |
 | DELETE | `/api/v1/admin/authorization/permissions` | Delete permission (body `{ "name": "..." }`) |
 | PUT | `/api/v1/admin/users/{id}/roles` | Assign roles (body `{ "roles": ["..."] }`) |
+
+### Instagram Integration
+
+Protected by dual-layer security: **Admin Headers** (`X-User-Author`, `X-Kampus-User`) **AND** **Bearer Token** (`Authorization: Bearer {token}`).
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/admin/instagram/auth-url` | Generate Instagram OAuth v26.0 URL and step-by-step instructions (`?redirect_uri=`) |
+| POST | `/api/v1/admin/instagram/exchange` | Link account: exchange `code` to 60-day Long-Lived Token (or save `access_token`) |
+| GET | `/api/v1/admin/instagram/status` | Connection status, linked username, days left, and expiration date |
+| POST | `/api/v1/admin/instagram/refresh` | Manually refresh long-lived token (resets lifetime to 60 days) |
+
+#### Exchange body
+
+```json
+{
+  "code": "AQC..."
+}
+```
+
+Or direct manual token:
+
+```json
+{
+  "access_token": "IGQ..."
+}
+```
 
 ---
 

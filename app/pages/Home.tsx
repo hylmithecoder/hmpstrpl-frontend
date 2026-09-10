@@ -16,7 +16,18 @@ import {
     SegmentedControl,
     SegmentedControlItem
 } from '@astryxdesign/core';
-import { apiFetch, mockPosts, getPostThumbnail, type Post } from '../utils/api';
+import {
+    apiFetch,
+    mockPosts,
+    getPostThumbnail,
+    fetchInstagramFeed,
+    instagramCover,
+    instagramTitle,
+    instagramExcerpt,
+    INSTAGRAM_USERNAME,
+    type Post,
+    type InstagramMedia
+} from '../utils/api';
 import type { SlideData } from '../utils/slides';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -29,6 +40,7 @@ interface HomeProps {
 
 export const Home = ({ slides: slideFiles }: HomeProps) => {
     const [posts, setPosts] = useState<Post[]>([]);
+    const [igItems, setIgItems] = useState<InstagramMedia[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Active slide index (linear progression)
@@ -109,17 +121,52 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
         setReveal(prev => ({ ...prev, count: 0 }));
     }, [isMobile]);
 
-    // Fetch posts for the blog slide
+    // Fetch both sources for the news slide: the Instagram feed leads, blog
+    // posts fill whatever room is left (or all of it when IG is unavailable).
     useEffect(() => {
         async function loadData() {
             setLoading(true);
-            const data = await apiFetch<Post[]>('/posts', mockPosts);
+            const [data, instagram] = await Promise.all([
+                apiFetch<Post[]>('/posts', mockPosts),
+                fetchInstagramFeed(3, 'all'),
+            ]);
             const postsArray = Array.isArray(data) ? data : ((data as any)?.data || []);
             setPosts(postsArray.slice(0, 3));
+            setIgItems(instagram.feed.items);
             setLoading(false);
         }
         loadData();
     }, []);
+
+    // News slide cards, Instagram first. Both sources are normalised to one
+    // shape so the card markup (and the fixed desktop slide height) stays put.
+    const highlights = React.useMemo(() => {
+        const fromInstagram = igItems.map(item => ({
+            key: `ig-${item.id}`,
+            href: `/berita/${item.id}`,
+            badge: 'Instagram',
+            badgeVariant: 'purple' as const,
+            timestamp: item.timestamp,
+            title: instagramTitle(item.caption, 70),
+            excerpt: instagramExcerpt(item.caption, 120),
+            image: instagramCover(item),
+            author: INSTAGRAM_USERNAME ? `@${INSTAGRAM_USERNAME}` : 'Instagram',
+        }));
+
+        const fromBlog = posts.map(post => ({
+            key: `post-${post.id}`,
+            href: `/blog/${post.slug}`,
+            badge: post.category?.name || 'Berita',
+            badgeVariant: 'blue' as const,
+            timestamp: post.published_at,
+            title: post.title,
+            excerpt: post.excerpt || '',
+            image: getPostThumbnail(post),
+            author: `Oleh: ${post.user?.name || 'Admin'}`,
+        }));
+
+        return [...fromInstagram, ...fromBlog].slice(0, 3);
+    }, [igItems, posts]);
 
     // Navigation helpers (reveal pending overlays before moving between slides)
     const goToNextSlide = () => {
@@ -712,46 +759,46 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
                                             <div className="flex items-center justify-center py-20">
                                                 <Spinner size="lg" />
                                             </div>
-                                        ) : posts.length > 0 ? (
+                                        ) : highlights.length > 0 ? (
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 overflow-hidden">
-                                                {posts.slice(0, isMobile ? 1 : 3).map((post) => (
+                                                {highlights.slice(0, isMobile ? 1 : 3).map((item) => (
                                                     <ClickableCard
-                                                        key={post.id}
-                                                        label={`Baca artikel: ${post.title}`}
-                                                        href={`/blog/${post.slug}`}
+                                                        key={item.key}
+                                                        label={`Baca: ${item.title}`}
+                                                        href={item.href}
                                                         variant="default"
                                                         padding={5}
                                                         className="flex flex-col gap-3 h-full justify-between font-sans min-w-0 overflow-hidden"
                                                     >
-                                                        {getPostThumbnail(post) && (
+                                                        {item.image && (
                                                             <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-border bg-muted/20 md:hidden">
                                                                 <img
-                                                                    src={getPostThumbnail(post)!}
-                                                                    alt={post.title}
+                                                                    src={item.image}
+                                                                    alt={item.title}
                                                                     className="w-full h-full object-cover"
                                                                 />
                                                             </div>
                                                         )}
                                                         <VStack gap={3} align="start">
                                                             <HStack justify="between" align="center" className="w-full">
-                                                                <Badge variant="blue" label={post.category?.name || 'Berita'} />
+                                                                <Badge variant={item.badgeVariant} label={item.badge} />
                                                                 <Text type="supporting" color="secondary" className="text-xs">
-                                                                    {new Date(post.published_at).toLocaleDateString('id-ID', {
+                                                                    {new Date(item.timestamp).toLocaleDateString('id-ID', {
                                                                         day: 'numeric',
                                                                         month: 'short'
                                                                     })}
                                                                 </Text>
                                                             </HStack>
                                                             <Heading level={3} className="text-primary font-sans text-sm font-bold mt-1 line-clamp-2">
-                                                                {post.title}
+                                                                {item.title}
                                                             </Heading>
                                                             <Text type="body" color="secondary" className="font-sans text-xs leading-relaxed line-clamp-3 text-justify">
-                                                                {post.excerpt}
+                                                                {item.excerpt}
                                                             </Text>
                                                         </VStack>
                                                         <div className="mt-4 pt-3 border-t border-border text-xs text-secondary flex justify-between items-center font-sans w-full">
-                                                            <span>Oleh: {post.user?.name || 'Admin'}</span>
-                                                            <span className="font-medium text-accent">Baca &rarr;</span>
+                                                            <span className="truncate">{item.author}</span>
+                                                            <span className="font-medium text-accent shrink-0">Baca &rarr;</span>
                                                         </div>
                                                     </ClickableCard>
                                                 ))}
@@ -759,19 +806,25 @@ export const Home = ({ slides: slideFiles }: HomeProps) => {
                                         ) : (
                                             <div className="text-center py-16 bg-surface border border-dashed border-border rounded-2xl">
                                                 <Text type="body" color="secondary" className="font-sans">
-                                                    Belum ada artikel atau kabar yang dipublikasikan.
+                                                    Belum ada berita atau artikel yang dipublikasikan.
                                                 </Text>
                                             </div>
                                         )}
 
-                                        <div className="flex justify-center mt-4">
+                                        <HStack gap={3} justify="center" wrap="wrap" className="mt-4">
+                                            <Button
+                                                variant="primary"
+                                                size="md"
+                                                label="Semua Berita Instagram"
+                                                href="/berita"
+                                            />
                                             <Button
                                                 variant="secondary"
                                                 size="md"
-                                                label="Kunjungi Portal Blog Lengkap"
+                                                label="Kunjungi Portal Blog"
                                                 href="/blog"
                                             />
-                                        </div>
+                                        </HStack>
                                     </VStack>
                                 )}
                             </div>

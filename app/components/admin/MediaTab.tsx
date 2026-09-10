@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { VStack, Heading, Text, Card, Button, TextInput, HStack } from '@astryxdesign/core';
-import { API_ORIGIN, resolveMediaUrl, type Media } from '../../utils/api';
+import { resolveMediaUrl, type Media } from '../../utils/api';
 
 interface MediaTabProps {
     media: Media[];
@@ -19,7 +19,7 @@ function isImage(filename: string): boolean {
 
 function getMediaUrl(file: Media): string {
     if (file.url?.startsWith('http') || file.url?.startsWith('data:') || file.url?.startsWith('blob:')) return file.url;
-    if (file.url) return `${API_ORIGIN}${file.url.startsWith('/') ? '' : '/'}${file.url}`;
+    if (file.url) return file.url.startsWith('/') ? file.url : `/${file.url}`;
     return resolveMediaUrl(file.filename);
 }
 

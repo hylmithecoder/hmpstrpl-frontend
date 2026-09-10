@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { HStack, SegmentedControl, SegmentedControlItem, Text } from '@astryxdesign/core';
 import { useThemeMode } from './ThemeProvider';
 import Link from 'next/link';
-import { API_ORIGIN } from '../utils/api';
 import Image from 'next/image';
 
 const NAV_LINKS = [
@@ -12,7 +11,7 @@ const NAV_LINKS = [
     { href: '/organisasi', label: 'Kepengurusan' },
     // { href: '/blog', label: 'Kelulusan' },
     { href: '#', label: 'Divisi' },
-    { href: '/blog?category=news', label: 'Berita' },
+    { href: '/berita', label: 'Berita' },
     { href: '/blog?category=article', label: 'Artikel' },
 ];
 
@@ -37,7 +36,7 @@ const Navbar = () => {
     useEffect(() => {
         const loadPeriods = async () => {
             try {
-                const res = await fetch(`${API_ORIGIN}/api/v1/management-years`);
+                const res = await fetch(`/api/v1/management-years`);
                 if (res.ok) {
                     const json = await res.json();
                     if (json.success && Array.isArray(json.data)) {
@@ -51,7 +50,7 @@ const Navbar = () => {
                         const checked = await Promise.all(
                             formatted.map(async (p: any) => {
                                 try {
-                                    const r = await fetch(`${API_ORIGIN}/api/v1/struktur-organisasi/${p.slug}`);
+                                    const r = await fetch(`/api/v1/struktur-organisasi/${p.slug}`);
                                     if (r.ok) {
                                         const j = await r.json();
                                         const hasDivisions = j.data?.divisions?.length > 0;
@@ -74,7 +73,7 @@ const Navbar = () => {
 
         const loadDivises = async () => {
             try {
-                const res = await fetch(`${API_ORIGIN}/api/v1/divisions`);
+                const res = await fetch(`/api/v1/divisions`);
                 if (res.ok) {
                     const json = await res.json();
                     if (json.success && Array.isArray(json.data)) {
@@ -86,7 +85,7 @@ const Navbar = () => {
 
                         // Fetch latest period structure to check member counts
                         let periodToCheck = '';
-                        const periodRes = await fetch(`${API_ORIGIN}/api/v1/management-years`);
+                        const periodRes = await fetch(`/api/v1/management-years`);
                         if (periodRes.ok) {
                             const periodJson = await periodRes.json();
                             if (periodJson.success && Array.isArray(periodJson.data) && periodJson.data.length > 0) {
@@ -96,7 +95,7 @@ const Navbar = () => {
                         }
                         if (!periodToCheck) periodToCheck = '2025-2026';
 
-                        const structRes = await fetch(`${API_ORIGIN}/api/v1/struktur-organisasi/${periodToCheck}`);
+                        const structRes = await fetch(`/api/v1/struktur-organisasi/${periodToCheck}`);
                         let membersMap: Record<string, number> = {};
                         if (structRes.ok) {
                             const structJson = await structRes.json();

@@ -51,8 +51,9 @@ import MediaTab from '../components/admin/MediaTab';
 import InboxTab from '../components/admin/InboxTab';
 import UsersTab from '../components/admin/UsersTab';
 import SettingsTab from '../components/admin/SettingsTab';
+import InstagramTab from '../components/admin/InstagramTab';
 
-type TabType = 'overview' | 'posts' | 'categories' | 'members' | 'divisions' | 'years' | 'media' | 'inbox' | 'users' | 'settings';
+type TabType = 'overview' | 'posts' | 'categories' | 'members' | 'divisions' | 'years' | 'media' | 'instagram' | 'inbox' | 'users' | 'settings';
 
 export default function AdminDashboardPage() {
     const router = useRouter();
@@ -67,6 +68,13 @@ export default function AdminDashboardPage() {
                 router.push('/login');
             } else {
                 setIsAuthenticated(true);
+            }
+
+            // Instagram OAuth redirects back to /dashboard?code=… — land the
+            // admin on the Instagram tab, which picks the code up and exchanges it.
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('code') || params.get('tab') === 'instagram') {
+                setActiveTab('instagram');
             }
         }
     }, [router]);
@@ -200,6 +208,7 @@ export default function AdminDashboardPage() {
         { id: 'divisions', label: `Divisi (${divisions.length})` },
         { id: 'years', label: `Periode (${years.length})` },
         { id: 'media', label: `Media Library (${media.length})` },
+        { id: 'instagram', label: 'Instagram' },
         { id: 'inbox', label: `Pesan Masuk (${inbox.length})` },
         { id: 'users', label: `Manajemen User (${users.length})` },
         { id: 'settings', label: 'Pengaturan' }
@@ -290,6 +299,9 @@ export default function AdminDashboardPage() {
                                 )}
                                 {activeTab === 'media' && (
                                     <MediaTab media={media} setMedia={setMedia} setBanner={showBanner} />
+                                )}
+                                {activeTab === 'instagram' && (
+                                    <InstagramTab setBanner={showBanner} />
                                 )}
                                 {activeTab === 'inbox' && (
                                     <InboxTab inbox={inbox} setInbox={setInbox} setStats={setStats} />

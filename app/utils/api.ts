@@ -97,7 +97,11 @@ export interface ApiResponse<T> {
 }
 
 export const API_ORIGIN = process.env.NEXT_PUBLIC_API_ORIGIN || 'http://localhost:5000';
-const API_BASE_URL = `${API_ORIGIN}/api/v1`;
+
+// Server-side fetches need the absolute API address; in the browser we go
+// through this app's own origin and let the next.config rewrite proxy it, since
+// a page served over HTTPS cannot call http://localhost directly.
+const API_BASE_URL = typeof window === 'undefined' ? `${API_ORIGIN}/api/v1` : '/api/v1';
 
 // One section of a post body. Post.body stores JSON: [{ "content": "<p>…</p>", "file": ["url", …] }]
 export interface PostSection {
@@ -165,17 +169,19 @@ export function containsForbiddenScript(html: string): boolean {
   return /<script\b|javascript:|\son\w+\s*=/i.test(html);
 }
 
-// Media library files are served from the storage server by filename
+// Media library files are served from the storage server by filename. The path
+// stays relative so the browser loads it from this origin (proxied by the
+// next.config rewrite) instead of an API host it may not be able to reach.
 export function resolveMediaUrl(filename: string): string {
   if (filename.startsWith('http') || filename.startsWith('data:') || filename.startsWith('blob:')) return filename;
-  return `${API_ORIGIN}/storage/img/media/${filename}`;
+  return `/storage/img/media/${filename}`;
 }
 
-// Resolves member photo filenames to full storage URLs
+// Resolves member photo filenames to storage URLs
 export function resolvePhoto(photo?: string): string | undefined {
   if (!photo) return undefined;
   if (photo.startsWith('http') || photo.startsWith('data:') || photo.startsWith('blob:')) return photo;
-  return `${API_ORIGIN}/storage/img/members/${photo}`;
+  return `/storage/img/members/${photo}`;
 }
 
 // Robust generic API fetcher with automatic mock fallback if request fails.
@@ -721,3 +727,317 @@ export const mockMedia: Media[] = [
 
 
 
+// ---------------------------------------------------------------------------
+// Instagram integration (backend: /api/v1/instagram/* and /api/v1/admin/instagram/*)
+//
+// The admin links the official HMPS Instagram account once from the dashboard
+// (OAuth → 60-day long-lived token stored by the backend). Everything the
+// public "Berita" page shows is that account's own feed, proxied and cached
+// for 15 minutes by the Rust API, so no token ever reaches the browser.
+// ---------------------------------------------------------------------------
+
+// Public handle of the linked account, used only for the "lihat di Instagram"
+// profile link (the admin status endpoint that knows it is token-protected).
+export const INSTAGRAM_USERNAME = process.env.NEXT_PUBLIC_INSTAGRAM_USERNAME || '';
+
+// OAuth redirect URI. Instagram rejects any value that is not registered
+// verbatim in the Meta app ("Invalid redirect_uri") and requires https, so this
+// is configurable: when the registered URI is a tunnel/production domain rather
+// than wherever the dashboard happens to be open, set it here. Empty falls back
+// to `<origin>/dashboard`.
+export const INSTAGRAM_REDIRECT_URI = process.env.NEXT_PUBLIC_IG_REDIRECT_URI || '';
+
+export type InstagramMediaType = 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM';
+
+export interface InstagramChild {
+  id: string;
+  media_type: InstagramMediaType;
+  media_url?: string;
+  thumbnail_url?: string;
+}
+
+export interface InstagramMedia {
+  id: string;
+  caption?: string;
+  media_type: InstagramMediaType;
+  media_url?: string;
+  permalink: string;
+  thumbnail_url?: string;
+  timestamp: string;
+  children?: { data: InstagramChild[] };
+}
+
+export interface InstagramFeed {
+  items: InstagramMedia[];
+  total: number;
+  graph_version?: string;
+  cached?: boolean;
+}
+
+export interface InstagramStatus {
+  connected: boolean;
+  id?: number;
+  username?: string | null;
+  user_id?: string | null;
+  expires_at?: string | null;
+  days_left?: number | null;
+  is_expired?: boolean;
+  token_preview?: string;
+  message?: string;
+}
+
+export interface InstagramAuthUrl {
+  client_id: string;
+  redirect_uri: string;
+  graph_version: string;
+  auth_url: string;
+  instructions: string[];
+}
+
+export type InstagramFeedFilter = 'all' | 'reels' | 'image';
+
+// Backoff between automatic retries. A transient failure (API restarting, flaky
+// tunnel, Graph API hiccup) resolves itself; the visitor should never have to
+// reload the page for it.
+const IG_RETRY_DELAYS = [600, 1500, 3000];
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Configuration states, not faults: the account is not linked, the token
+// expired, or the app credentials are missing. Retrying cannot change the
+// answer, so these fail fast instead of burning three requests.
+function isInstagramConfigError(message: string): boolean {
+  return /ditautkan|kedaluwarsa|dikonfigurasi/i.test(message);
+}
+
+// Shared transport for the public Instagram endpoints: unwraps the API
+// envelope, surfaces the backend message, and retries transient failures.
+async function instagramRequest<T>(
+  path: string,
+  opts?: { noStore?: boolean }
+): Promise<{ data: T | null; error: string | null }> {
+  let lastError = 'Tidak dapat terhubung ke server API.';
+
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE_URL}${path}`, {
+        ...(opts?.noStore ? { cache: 'no-store' as const } : { next: { revalidate: 300 } }),
+        headers: { Accept: 'application/json' },
+      });
+      const json: ApiResponse<T> = await res.json();
+
+      if (res.ok && json.success) return { data: json.data, error: null };
+
+      lastError = json.message || `Permintaan gagal (HTTP ${res.status}).`;
+      // 4xx and configuration messages are definitive answers — stop here.
+      if (res.status < 500 || isInstagramConfigError(lastError)) {
+        return { data: null, error: lastError };
+      }
+    } catch (error) {
+      // Network failure, or a body that is not the JSON envelope (gateway page).
+      console.warn(`Instagram request ${path} failed (attempt ${attempt + 1}):`, error);
+      lastError = 'Tidak dapat terhubung ke server API. Pastikan backend berjalan.';
+    }
+
+    if (attempt >= IG_RETRY_DELAYS.length) return { data: null, error: lastError };
+    await sleep(IG_RETRY_DELAYS[attempt]);
+  }
+}
+
+// Public feed. Unlike apiFetch this surfaces the backend error message, because
+// "belum ditautkan admin" / "token kedaluwarsa" must be visible to the visitor.
+export async function fetchInstagramFeed(
+  limit = 12,
+  type: InstagramFeedFilter = 'all',
+  opts?: { noStore?: boolean }
+): Promise<{ feed: InstagramFeed; error: string | null }> {
+  const empty: InstagramFeed = { items: [], total: 0 };
+  const { data, error } = await instagramRequest<InstagramFeed>(
+    `/instagram/feed?limit=${limit}&type=${type}`,
+    opts
+  );
+  return { feed: data ? { ...empty, ...data } : empty, error };
+}
+
+// Public detail of a single media post.
+export async function fetchInstagramMedia(
+  id: string,
+  opts?: { noStore?: boolean }
+): Promise<{ media: InstagramMedia | null; error: string | null }> {
+  const { data, error } = await instagramRequest<InstagramMedia>(
+    `/instagram/feed/${encodeURIComponent(id)}`,
+    opts
+  );
+  return { media: data, error };
+}
+
+// /admin/instagram/* needs the admin headers AND a valid Bearer token
+// (dual-layer guard in the Rust router), so admin GETs go through this helper
+// instead of apiAdminFetch which sends no Authorization header.
+export async function apiAdminAuthFetch<T>(
+  path: string
+): Promise<{ success: boolean; message: string; data?: T }> {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('hmps_auth_token') : null;
+    const headers: Record<string, string> = { ...ADMIN_HEADERS };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE_URL}${path}`, { headers, cache: 'no-store' });
+    const json = await res.json();
+    return {
+      success: json.success ?? res.ok,
+      message: json.message ?? (res.ok ? 'Berhasil.' : `Permintaan gagal (HTTP ${res.status}).`),
+      data: json.data,
+    };
+  } catch (error) {
+    console.error(`Admin request failed for ${path}:`, error);
+    return { success: false, message: 'Gagal terhubung ke server API.' };
+  }
+}
+
+export function fetchInstagramStatus() {
+  return apiAdminAuthFetch<InstagramStatus>('/admin/instagram/status');
+}
+
+export function fetchInstagramAuthUrl(redirectUri?: string) {
+  const q = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
+  return apiAdminAuthFetch<InstagramAuthUrl>(`/admin/instagram/auth-url${q}`);
+}
+
+// Links the account. Accepts the `code` from the OAuth redirect, or a
+// manually pasted long-lived `access_token`.
+export function exchangeInstagramCode(
+  payload: { code: string; redirectUri?: string } | { access_token: string }
+) {
+  if ('access_token' in payload) {
+    return apiAdminMutate<InstagramStatus>('/admin/instagram/exchange', 'POST', {
+      access_token: payload.access_token,
+    });
+  }
+  const q = payload.redirectUri ? `?redirect_uri=${encodeURIComponent(payload.redirectUri)}` : '';
+  return apiAdminMutate<InstagramStatus>(`/admin/instagram/exchange${q}`, 'POST', { code: payload.code });
+}
+
+export function refreshInstagramToken() {
+  return apiAdminMutate<InstagramStatus>('/admin/instagram/refresh', 'POST');
+}
+
+// The first line of a caption reads as the headline; the rest is the body.
+export function instagramTitle(caption?: string, maxLength = 90): string {
+  const first = (caption || '').split('\n').map(l => l.trim()).find(Boolean);
+  if (!first) return 'Postingan Instagram';
+  return first.length > maxLength ? `${first.slice(0, maxLength).trimEnd()}…` : first;
+}
+
+export function instagramExcerpt(caption?: string, maxLength = 160): string {
+  const text = (caption || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  return text.length > maxLength ? `${text.slice(0, maxLength).trimEnd()}…` : text;
+}
+
+// Hashtags are pulled out of the caption and rendered as badges.
+export function instagramHashtags(caption?: string, max = 6): string[] {
+  const found = (caption || '').match(/#[\p{L}\p{N}_]+/gu) || [];
+  return Array.from(new Set(found.map(t => t.slice(1)))).slice(0, max);
+}
+
+// Cover image for a card: videos/reels use their thumbnail, carousels fall
+// back to the first child when the album itself carries no media_url.
+export function instagramCover(media: InstagramMedia): string | null {
+  if (media.media_type === 'VIDEO') return media.thumbnail_url || media.media_url || null;
+  if (media.media_url) return media.media_url;
+  const child = media.children?.data?.[0];
+  return child?.thumbnail_url || child?.media_url || null;
+}
+
+// Flattens a post into the slides to render: carousel children, or itself.
+export function instagramSlides(media: InstagramMedia): InstagramChild[] {
+  const children = media.children?.data;
+  if (children && children.length > 0) return children;
+  return [
+    {
+      id: media.id,
+      media_type: media.media_type,
+      media_url: media.media_url,
+      thumbnail_url: media.thumbnail_url,
+    },
+  ];
+}
+
+export function isInstagramReel(media: InstagramMedia): boolean {
+  return media.media_type === 'VIDEO' || media.permalink?.includes('/reel/');
+}
+
+// ---------------------------------------------------------------------------
+// Collaboration posts
+//
+// Instagram's Graph API only returns media *owned* by the linked account, so a
+// collab post (owned by the partner account, shown on both profiles) never
+// appears in /me/media. There is no API to fetch it either. The admin therefore
+// curates those permalinks by hand; the public page renders them with
+// Instagram's own public embed, which needs no token.
+// ---------------------------------------------------------------------------
+
+export const INSTAGRAM_COLLAB_KEY = 'instagram_collab_posts';
+
+// Accepts a post/reel permalink and returns its embeddable form, or null when
+// the URL is not an Instagram post link.
+export function instagramEmbedUrl(permalink: string): string | null {
+  const match = permalink
+    .trim()
+    .match(/^https?:\/\/(?:www\.)?instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)/);
+  if (!match) return null;
+  return `https://www.instagram.com/${match[1]}/${match[2]}/embed/captioned`;
+}
+
+function parseCollabLinks(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === 'string' && !!instagramEmbedUrl(item));
+  } catch {
+    return [];
+  }
+}
+
+// Reads the curated list. Called from the server for the public page (the
+// settings endpoint sits behind the admin headers) and from the admin tab.
+export async function fetchInstagramCollabLinks(opts?: { noStore?: boolean }): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/settings`, {
+      // The public page revalidates like the feed does, so it stays statically
+      // rendered; the admin tab passes noStore to always see its own edits.
+      ...(opts?.noStore ? { cache: 'no-store' as const } : { next: { revalidate: 300 } }),
+      headers: ADMIN_HEADERS,
+    });
+    if (!res.ok) return [];
+    const json: ApiResponse<Setting[]> = await res.json();
+    if (!json.success || !Array.isArray(json.data)) return [];
+    const row = json.data.find(item => item.key === INSTAGRAM_COLLAB_KEY);
+    return row ? parseCollabLinks(row.value) : [];
+  } catch (error) {
+    console.warn('Failed to load Instagram collab links:', error);
+    return [];
+  }
+}
+
+// Creates the setting row on first save, updates it afterwards.
+export async function saveInstagramCollabLinks(
+  links: string[]
+): Promise<{ success: boolean; message: string }> {
+  const current = await apiAdminAuthFetch<Setting[]>('/admin/settings');
+  const existing = Array.isArray(current.data)
+    ? current.data.find(item => item.key === INSTAGRAM_COLLAB_KEY)
+    : undefined;
+  const value = JSON.stringify(links);
+
+  return existing
+    ? apiAdminMutate(`/admin/settings/${existing.id}`, 'PUT', { key: INSTAGRAM_COLLAB_KEY, value })
+    : apiAdminMutate('/admin/settings', 'POST', { key: INSTAGRAM_COLLAB_KEY, value });
+}
+
+export function formatInstagramDate(timestamp: string): string {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
