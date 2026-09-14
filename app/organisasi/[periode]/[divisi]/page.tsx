@@ -19,6 +19,19 @@ interface PageProps {
   params: Promise<{ periode: string; divisi: string }>;
 }
 
+const isLeaderPosition = (posName?: string) => {
+  if (!posName) return false;
+  const lower = posName.toLowerCase();
+  return lower.includes('ketua') ||
+    lower.includes('kepala') ||
+    lower.includes('kadiv') ||
+    lower.includes('kordinator') ||
+    lower.includes('koordinator') ||
+    lower.includes('wakil') ||
+    lower.includes('sekretaris') ||
+    lower.includes('bendahara');
+};
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { periode, divisi } = await params;
   const aliasDisplay = divisi.length <= 4
@@ -92,64 +105,68 @@ export default async function DivisiDetailPage({ params }: PageProps) {
             <Divider />
 
             {members.length > 0 ? (
-              <div className="flex flex-wrap justify-center gap-6">
-                {/* Force 3-per-row on desktop by sizing each card */}
-                {members.map((member) => (
-                  <Card key={member.uuid} variant="default" padding={5} className="flex flex-col justify-between w-full md:flex-[0_0_calc(33.333%-1rem)]">
-                    <VStack gap={4} align="start">
-                      <VStack gap={3} align="center" className="w-full text-center">
-                        <Avatar name={member.name} size={128} src={resolvePhoto(member.photo)} />
-                        <VStack gap={1} align="center">
-                          <Text type="body" weight="bold" className="text-primary font-sans leading-tight">
+              <div className={members.length === 1 ? "flex justify-center w-full max-w-sm mx-auto" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full"}>
+                {members.map((member) => {
+                  const isLeader = isLeaderPosition(member.position?.name);
+                  return (
+                    <Card
+                      key={member.uuid}
+                      variant="default"
+                      padding={5}
+                      className={`group relative flex flex-col justify-between items-center text-center h-full rounded-2xl border border-border/80 bg-surface/95 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5 overflow-hidden ${
+                        isLeader ? 'border-t-4 border-t-accent' : ''
+                      }`}
+                    >
+                      <VStack gap={3} align="center" className="w-full">
+                        <div className="relative mx-auto flex items-center justify-center pt-1">
+                          <div className="rounded-full p-1 ring-2 ring-border/80 group-hover:ring-accent/60 transition-all duration-300 shadow-md">
+                            <Avatar name={member.name} size={isLeader ? 144 : 128} src={resolvePhoto(member.photo)} />
+                          </div>
+                        </div>
+
+                        <VStack gap={1.5} align="center" className="w-full">
+                          <Text type="body" weight="bold" className="text-primary font-sans text-base leading-snug group-hover:text-accent transition-colors duration-200">
                             {member.name}
                           </Text>
                           <Badge
-                            variant={member.position?.name.toLowerCase().includes('kepala') || member.position?.name.toLowerCase().includes('ketua') ? 'blue' : 'neutral'}
+                            variant={isLeader ? 'blue' : 'neutral'}
                             label={member.position?.name || 'Anggota'}
                           />
                         </VStack>
-                      </VStack>
 
-                      <VStack gap={2}>
-                        {member.nim && (
-                          <HStack gap={2}>
-                            <Text type="supporting" color="secondary" weight="semibold" className="text-xs uppercase tracking-wider font-sans w-16">NIM:</Text>
-                            <Text type="supporting" color="disabled" className="text-xs font-mono">{member.nim}</Text>
-                          </HStack>
-                        )}
                         {member.bio && (
-                          <Text type="body" color="secondary" className="font-sans text-sm italic leading-relaxed text-justify mt-2">
-                            "{member.bio}"
+                          <Text type="supporting" color="secondary" className="font-sans text-xs md:text-sm italic leading-relaxed text-center max-w-xs line-clamp-3 mt-1 px-1">
+                            &ldquo;{member.bio}&rdquo;
                           </Text>
                         )}
                       </VStack>
-                    </VStack>
 
-                    {/* Contacts info if provided */}
-                    {(member.email || member.phone) && (
-                      <div className="mt-6 pt-4 border-t border-border">
-                        <HStack gap={4} wrap="wrap">
-                          {member.email && (
-                            <a
-                              href={`mailto:${member.email}`}
-                              className="text-xs text-accent hover:text-primary transition-colors font-sans decoration-none"
-                            >
-                              📧 {member.email}
-                            </a>
-                          )}
-                          {member.phone && (
-                            <a
-                              href={`tel:${member.phone}`}
-                              className="text-xs text-accent hover:text-primary transition-colors font-sans decoration-none"
-                            >
-                              📞 {member.phone}
-                            </a>
-                          )}
-                        </HStack>
-                      </div>
-                    )}
-                  </Card>
-                ))}
+                      {/* Contacts info if provided */}
+                      {(member.email || member.phone) && (
+                        <div className="mt-4 pt-3 border-t border-border/60 w-full">
+                          <HStack gap={3} justify="center" wrap="wrap">
+                            {member.email && (
+                              <a
+                                href={`mailto:${member.email}`}
+                                className="text-xs text-accent hover:text-primary transition-colors font-sans decoration-none flex items-center gap-1"
+                              >
+                                <span>📧</span> <span>{member.email}</span>
+                              </a>
+                            )}
+                            {member.phone && (
+                              <a
+                                href={`tel:${member.phone}`}
+                                className="text-xs text-accent hover:text-primary transition-colors font-sans decoration-none flex items-center gap-1"
+                              >
+                                <span>📞</span> <span>{member.phone}</span>
+                              </a>
+                            )}
+                          </HStack>
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-16 bg-surface border border-dashed border-border rounded-2xl">

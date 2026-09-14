@@ -61,6 +61,7 @@ export interface ManagementYear {
   start_year: number;
   end_year: number;
   slug: string; // derived yearSlug e.g. "2023-2024"
+  whatsapp_group_link?: string;
   divisions?: Division[];
 }
 

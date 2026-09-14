@@ -14,6 +14,7 @@ export default function PeriodsTab({ years, setYears, setBanner }: PeriodsTabPro
     const [showForm, setShowForm] = useState(false);
     const [yearStart, setYearStart] = useState('');
     const [yearEnd, setYearEnd] = useState('');
+    const [whatsappLink, setWhatsappLink] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,18 +29,21 @@ export default function PeriodsTab({ years, setYears, setBanner }: PeriodsTabPro
             id: years.length + 1,
             start_year: start,
             end_year: end,
-            slug: `${start}-${end}`
+            slug: `${start}-${end}`,
+            ...(whatsappLink.trim() ? { whatsapp_group_link: whatsappLink.trim() } : {})
         };
 
-        const response = await apiAdminMutate("/admin/management-years", "POST", newYear);
+        const response = await apiAdminMutate<ManagementYear>("/admin/management-years", "POST", newYear);
         if (!response.success) {
             setBanner('error', response.message);
             return;
         }
 
-        setYears([newYear, ...years]);
+        const savedYear = response.data || newYear;
+        setYears([savedYear, ...years]);
         setYearStart('');
         setYearEnd('');
+        setWhatsappLink('');
         setShowForm(false);
         setBanner('success', 'Periode kepengurusan baru berhasil ditambahkan!');
     };
@@ -75,6 +79,13 @@ export default function PeriodsTab({ years, setYears, setBanner }: PeriodsTabPro
                                 placeholder="2025"
                             />
                         </div>
+                        <TextInput
+                            label="Link Grup WhatsApp (Opsional)"
+                            value={whatsappLink}
+                            onChange={setWhatsappLink}
+                            isRequired={false}
+                            placeholder="https://chat.whatsapp.com/..."
+                        />
                         <Button type="submit" variant="primary" size="md" label="Simpan Periode" />
                     </form>
                 </Card>
@@ -84,14 +95,29 @@ export default function PeriodsTab({ years, setYears, setBanner }: PeriodsTabPro
                 <VStack gap={3} align="stretch">
                     {years.map(y => (
                         <HStack key={y.id} justify="between" align="center" className="border-b border-border/50 pb-2 last:border-0 last:pb-0">
-                            <Text type="body" weight="semibold" className="text-primary text-sm">
-                                Tahun Kepengurusan {y.start_year}/{y.end_year}
-                            </Text>
+                            <VStack gap={1}>
+                                <Text type="body" weight="semibold" className="text-primary text-sm">
+                                    Tahun Kepengurusan {y.start_year}/{y.end_year}
+                                </Text>
+                                {y.whatsapp_group_link && (
+                                    <Text type="supporting" color="secondary" className="text-xs truncate max-w-xs md:max-w-md">
+                                        WA: {y.whatsapp_group_link}
+                                    </Text>
+                                )}
+                            </VStack>
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 label="Hapus"
-                                onClick={() => setYears(years.filter(item => item.id !== y.id))}
+                                onClick={async () => {
+                                    const res = await apiAdminMutate(`/admin/management-years/${y.id}`, 'DELETE');
+                                    if (res.success) {
+                                        setYears(years.filter(item => item.id !== y.id));
+                                        setBanner('success', 'Periode kepengurusan berhasil dihapus.');
+                                    } else {
+                                        setBanner('error', res.message || 'Gagal menghapus periode kepengurusan.');
+                                    }
+                                }}
                             />
                         </HStack>
                     ))}

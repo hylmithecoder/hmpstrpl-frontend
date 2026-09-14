@@ -22,24 +22,44 @@ interface StrukturOrganisasiProps {
 // Match BPH/PH as the executive board division — alias can be 'ph', 'bph', or 'pengurus-harian'
 const PH_ALIASES = ['ph', 'bph', 'pengurus-harian', 'pengurus-harian-bph'];
 
+const isLeaderPosition = (posName?: string) => {
+    if (!posName) return false;
+    const lower = posName.toLowerCase();
+    return lower.includes('ketua') ||
+        lower.includes('kepala') ||
+        lower.includes('kadiv') ||
+        lower.includes('kordinator') ||
+        lower.includes('koordinator') ||
+        lower.includes('wakil') ||
+        lower.includes('sekretaris') ||
+        lower.includes('bendahara');
+};
+
 function MemberCard({ member, highlight, showBio }: { member: Member; highlight?: boolean; showBio?: boolean }) {
+    const isLeader = highlight || isLeaderPosition(member.position?.name);
     return (
         <Card
             variant="default"
-            padding={4}
-            className={`text-center h-full ${highlight ? 'border-t-4 border-t-accent' : ''}`}
+            padding={5}
+            className={`group relative flex flex-col justify-between items-center text-center h-full rounded-2xl border border-border/80 bg-surface/95 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5 overflow-hidden ${isLeader ? 'border-t-4 border-t-accent' : ''
+                }`}
         >
-            <VStack gap={3} align="center">
-                <Avatar name={member.name} size={highlight ? 144 : 128} src={resolvePhoto(member.photo)} />
-                <VStack gap={1}>
-                    <Text type="body" weight="bold" className="text-primary font-sans leading-tight">{member.name}</Text>
-                    <Badge variant={highlight ? 'blue' : 'neutral'} label={member.position?.name || 'Anggota'} />
+            <VStack gap={3} align="center" className="w-full">
+                <div className="relative mx-auto flex items-center justify-center pt-1">
+                    <div className="rounded-full p-1 ring-2 ring-border/80 group-hover:ring-accent/60 transition-all duration-300 shadow-md">
+                        <Avatar name={member.name} size={isLeader ? 144 : 128} src={resolvePhoto(member.photo)} />
+                    </div>
+                </div>
+                <VStack gap={1.5} align="center" className="w-full">
+                    <Text type="body" weight="bold" className="text-primary font-sans text-base leading-snug group-hover:text-accent transition-colors duration-200">
+                        {member.name}
+                    </Text>
+                    <Badge variant={isLeader ? 'blue' : 'neutral'} label={member.position?.name || 'Anggota'} />
                 </VStack>
                 {showBio && member.bio && (
-                    <Text type="supporting" color="secondary" className="font-sans max-w-xs">{member.bio}</Text>
-                )}
-                {member.nim && (
-                    <Text type="supporting" color="disabled" className="text-xs font-mono">NIM. {member.nim}</Text>
+                    <Text type="supporting" color="secondary" className="font-sans text-xs md:text-sm italic leading-relaxed text-center max-w-xs line-clamp-3 mt-1 px-1">
+                        &ldquo;{member.bio}&rdquo;
+                    </Text>
                 )}
             </VStack>
         </Card>
@@ -86,7 +106,7 @@ export default function StrukturOrganisasi({ periode, years, structure }: Strukt
     );
 
     // Division head extraction for the regular division layout
-    const kadiv = members.find(m => m.position?.name.toLowerCase().includes('kepala') || m.position?.name.toLowerCase().includes('kadiv') || m.position?.name.toLowerCase().includes('koordinator'));
+    const kadiv = members.find(m => isLeaderPosition(m.position?.name));
     const staff = members.filter(m => m.uuid !== kadiv?.uuid);
 
     return (
@@ -164,23 +184,36 @@ export default function StrukturOrganisasi({ periode, years, structure }: Strukt
                                 </VStack>
                             ) : (
                                 /* Regular division layout: head + staff grid */
-                                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                                    {kadiv && (
-                                        <div className="lg:col-span-1">
-                                            <MemberCard member={kadiv} highlight showBio />
+                                <div>
+                                    {kadiv && staff.length === 0 ? (
+                                        /* Only division head exists */
+                                        <div className="flex justify-center w-full max-w-sm mx-auto">
+                                            <div className="w-full">
+                                                <MemberCard member={kadiv} highlight showBio />
+                                            </div>
+                                        </div>
+                                    ) : kadiv ? (
+                                        /* Head + Staff */
+                                        <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full">
+                                            <div className="w-full lg:w-80 shrink-0">
+                                                <MemberCard member={kadiv} highlight showBio />
+                                            </div>
+                                            <div className="flex-1 w-full">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                                                    {staff.map((m) => (
+                                                        <MemberCard key={m.uuid} member={m} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        /* Only staff */
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
+                                            {staff.map((m) => (
+                                                <MemberCard key={m.uuid} member={m} />
+                                            ))}
                                         </div>
                                     )}
-                                    <div className={kadiv ? 'lg:col-span-3' : 'lg:col-span-4'}>
-                                        {staff.length > 0 ? (
-                                            <div className="flex flex-wrap justify-center gap-4">
-                                                {staff.map((m) => <div key={m.uuid} className="w-full md:flex-[0_0_calc(33.333%-1rem)]"><MemberCard member={m} /></div>)}
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center justify-center p-6 border border-dashed border-border rounded-xl h-full bg-muted/10">
-                                                <Text type="supporting" color="secondary" className="font-sans">Belum ada anggota staf terdaftar.</Text>
-                                            </div>
-                                        )}
-                                    </div>
                                 </div>
                             )}
                         </VStack>

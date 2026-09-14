@@ -189,12 +189,20 @@ export default function MembersTab({ members, setMembers, divisions, setDivision
             {showForm && (
                 <Card variant="muted" padding={5}>
                     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <TextInput
                                 label="Nama Lengkap"
                                 value={name}
                                 onChange={setName}
                                 isRequired={true}
+                                placeholder="Nama lengkap pengurus"
+                            />
+                            <TextInput
+                                label="NIM (Opsional)"
+                                value={nim}
+                                onChange={setNim}
+                                isRequired={false}
+                                placeholder="Contoh: 2105171001 (opsional)"
                             />
                             <VStack gap={2} align="stretch">
                                 <Text type="label" className="text-primary text-sm font-semibold">Jabatan</Text>
@@ -308,7 +316,12 @@ export default function MembersTab({ members, setMembers, divisions, setDivision
                                 <HStack gap={3} align="center">
                                     <Avatar name={m.name} size="small" src={resolvePhoto(m.photo)} />
                                     <VStack gap={1}>
-                                        <Text type="body" weight="bold" className="text-primary text-sm">{m.name}</Text>
+                                        <HStack gap={2} align="center">
+                                            <Text type="body" weight="bold" className="text-primary text-sm">{m.name}</Text>
+                                            {m.nim && (
+                                                <Text type="supporting" color="disabled" className="text-xs font-mono">({m.nim})</Text>
+                                            )}
+                                        </HStack>
                                         <HStack gap={2} align="center" wrap="wrap">
                                             <Badge variant="blue" label={m.position?.name || 'Staf'} />
                                             <Text type="supporting" color="secondary" className="text-xs">{m.division?.name}</Text>
