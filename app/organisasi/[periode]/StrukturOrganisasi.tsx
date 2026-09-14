@@ -35,32 +35,21 @@ const isLeaderPosition = (posName?: string) => {
         lower.includes('bendahara');
 };
 
-function MemberCard({ member, highlight, showBio }: { member: Member; highlight?: boolean; showBio?: boolean }) {
-    const isLeader = highlight || isLeaderPosition(member.position?.name);
+function MemberCard({ member }: { member: Member }) {
     return (
         <Card
             variant="default"
             padding={5}
-            className={`group relative flex flex-col justify-between items-center text-center h-full rounded-2xl border border-border/80 bg-surface/95 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5 overflow-hidden ${isLeader ? 'border-t-4 border-t-accent' : ''
-                }`}
+            className="flex flex-col justify-between items-center text-center w-full max-w-[280px] sm:max-w-[300px] rounded-2xl border border-border bg-surface transition-all duration-200 hover:border-border/80 hover:shadow-sm"
         >
             <VStack gap={3} align="center" className="w-full">
-                <div className="relative mx-auto flex items-center justify-center pt-1">
-                    <div className="rounded-full p-1 ring-2 ring-border/80 group-hover:ring-accent/60 transition-all duration-300 shadow-md">
-                        <Avatar name={member.name} size={isLeader ? 144 : 128} src={resolvePhoto(member.photo)} />
-                    </div>
-                </div>
+                <Avatar name={member.name} size={128} src={resolvePhoto(member.photo)} />
                 <VStack gap={1.5} align="center" className="w-full">
-                    <Text type="body" weight="bold" className="text-primary font-sans text-base leading-snug group-hover:text-accent transition-colors duration-200">
+                    <Text type="body" weight="bold" className="text-primary font-sans text-base leading-snug">
                         {member.name}
                     </Text>
-                    <Badge variant={isLeader ? 'blue' : 'neutral'} label={member.position?.name || 'Anggota'} />
+                    <Badge variant="neutral" label={member.position?.name || 'Anggota'} />
                 </VStack>
-                {showBio && member.bio && (
-                    <Text type="supporting" color="secondary" className="font-sans text-xs md:text-sm italic leading-relaxed text-center max-w-xs line-clamp-3 mt-1 px-1">
-                        &ldquo;{member.bio}&rdquo;
-                    </Text>
-                )}
             </VStack>
         </Card>
     );
@@ -168,52 +157,26 @@ export default function StrukturOrganisasi({ periode, years, structure }: Strukt
                             ) : isPH ? (
                                 /* Executive board tree layout */
                                 <VStack gap={6} align="center" className="w-full">
-                                    <div className="flex flex-col md:flex-row justify-center gap-6 w-full max-w-2xl">
-                                        {ketua && <div className="flex-1"><MemberCard member={ketua} highlight showBio /></div>}
-                                        {wakil && <div className="flex-1"><MemberCard member={wakil} highlight showBio /></div>}
+                                    <div className="flex flex-wrap justify-center gap-6 w-full max-w-2xl">
+                                        {ketua && <MemberCard member={ketua} />}
+                                        {wakil && <MemberCard member={wakil} />}
                                     </div>
-                                    <div className="flex flex-col md:flex-row justify-center gap-6 w-full max-w-2xl">
-                                        {sekretaris && <div className="flex-1"><MemberCard member={sekretaris} /></div>}
-                                        {bendahara && <div className="flex-1"><MemberCard member={bendahara} /></div>}
+                                    <div className="flex flex-wrap justify-center gap-6 w-full max-w-2xl">
+                                        {sekretaris && <MemberCard member={sekretaris} />}
+                                        {bendahara && <MemberCard member={bendahara} />}
                                     </div>
                                     {otherPh.length > 0 && (
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6 w-full max-w-3xl mt-4">
+                                        <div className="flex flex-wrap justify-center gap-6 w-full max-w-4xl">
                                             {otherPh.map((m) => <MemberCard key={m.uuid} member={m} />)}
                                         </div>
                                     )}
                                 </VStack>
                             ) : (
-                                /* Regular division layout: head + staff grid */
-                                <div>
-                                    {kadiv && staff.length === 0 ? (
-                                        /* Only division head exists */
-                                        <div className="flex justify-center w-full max-w-sm mx-auto">
-                                            <div className="w-full">
-                                                <MemberCard member={kadiv} highlight showBio />
-                                            </div>
-                                        </div>
-                                    ) : kadiv ? (
-                                        /* Head + Staff */
-                                        <div className="flex flex-col lg:flex-row gap-6 items-stretch w-full">
-                                            <div className="w-full lg:w-80 shrink-0">
-                                                <MemberCard member={kadiv} highlight showBio />
-                                            </div>
-                                            <div className="flex-1 w-full">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-                                                    {staff.map((m) => (
-                                                        <MemberCard key={m.uuid} member={m} />
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        /* Only staff */
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
-                                            {staff.map((m) => (
-                                                <MemberCard key={m.uuid} member={m} />
-                                            ))}
-                                        </div>
-                                    )}
+                                /* Regular division layout: unified symmetrical grid, always centered */
+                                <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl mx-auto">
+                                    {(kadiv ? [kadiv, ...staff] : staff).map((m) => (
+                                        <MemberCard key={m.uuid} member={m} />
+                                    ))}
                                 </div>
                             )}
                         </VStack>

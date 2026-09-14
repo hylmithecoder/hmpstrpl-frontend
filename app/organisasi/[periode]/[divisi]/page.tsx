@@ -54,6 +54,12 @@ export default async function DivisiDetailPage({ params }: PageProps) {
     { noStore: true }
   );
 
+  const sortedMembers = [...members].sort((a, b) => {
+    const aLead = isLeaderPosition(a.position?.name) ? 1 : 0;
+    const bLead = isLeaderPosition(b.position?.name) ? 1 : 0;
+    return bLead - aLead;
+  });
+
   // Period years: prefer API member payload, then derive from the URL slug (e.g. "2024-2025")
   const [slugStart, slugEnd] = periode.split('-');
   const startYear = members[0]?.managementyear?.start_year ?? slugStart;
@@ -76,7 +82,7 @@ export default async function DivisiDetailPage({ params }: PageProps) {
     <div className="flex flex-col min-h-screen bg-body text-primary transition-colors duration-250">
       <Navbar />
 
-      <main className="flex-1 mx-auto w-full max-w-4xl px-6 py-16">
+      <main className="flex-1 mx-auto w-full max-w-5xl px-6 py-16">
         <VStack gap={6} align="stretch">
 
           {/* Back Button */}
@@ -104,42 +110,24 @@ export default async function DivisiDetailPage({ params }: PageProps) {
             </Heading>
             <Divider />
 
-            {members.length > 0 ? (
-              <div className={members.length === 1 ? "flex justify-center w-full max-w-sm mx-auto" : "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 w-full"}>
-                {members.map((member) => {
-                  const isLeader = isLeaderPosition(member.position?.name);
-                  return (
-                    <Card
-                      key={member.uuid}
-                      variant="default"
-                      padding={5}
-                      className={`group relative flex flex-col justify-between items-center text-center h-full rounded-2xl border border-border/80 bg-surface/95 transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5 overflow-hidden ${
-                        isLeader ? 'border-t-4 border-t-accent' : ''
-                      }`}
-                    >
-                      <VStack gap={3} align="center" className="w-full">
-                        <div className="relative mx-auto flex items-center justify-center pt-1">
-                          <div className="rounded-full p-1 ring-2 ring-border/80 group-hover:ring-accent/60 transition-all duration-300 shadow-md">
-                            <Avatar name={member.name} size={isLeader ? 144 : 128} src={resolvePhoto(member.photo)} />
-                          </div>
-                        </div>
-
-                        <VStack gap={1.5} align="center" className="w-full">
-                          <Text type="body" weight="bold" className="text-primary font-sans text-base leading-snug group-hover:text-accent transition-colors duration-200">
-                            {member.name}
-                          </Text>
-                          <Badge
-                            variant={isLeader ? 'blue' : 'neutral'}
-                            label={member.position?.name || 'Anggota'}
-                          />
-                        </VStack>
-
-                        {member.bio && (
-                          <Text type="supporting" color="secondary" className="font-sans text-xs md:text-sm italic leading-relaxed text-center max-w-xs line-clamp-3 mt-1 px-1">
-                            &ldquo;{member.bio}&rdquo;
-                          </Text>
-                        )}
+            {sortedMembers.length > 0 ? (
+              <div className="flex flex-wrap justify-center gap-6 w-full max-w-5xl mx-auto">
+                {sortedMembers.map((member) => (
+                  <Card
+                    key={member.uuid}
+                    variant="default"
+                    padding={5}
+                    className="flex flex-col justify-between items-center text-center w-full max-w-[280px] sm:max-w-[300px] rounded-2xl border border-border bg-surface transition-all duration-200 hover:border-border/80 hover:shadow-sm"
+                  >
+                    <VStack gap={3} align="center" className="w-full">
+                      <Avatar name={member.name} size={128} src={resolvePhoto(member.photo)} />
+                      <VStack gap={1.5} align="center" className="w-full">
+                        <Text type="body" weight="bold" className="text-primary font-sans text-base leading-snug">
+                          {member.name}
+                        </Text>
+                        <Badge variant="neutral" label={member.position?.name || 'Anggota'} />
                       </VStack>
+                    </VStack>
 
                       {/* Contacts info if provided */}
                       {(member.email || member.phone) && (
@@ -165,8 +153,7 @@ export default async function DivisiDetailPage({ params }: PageProps) {
                         </div>
                       )}
                     </Card>
-                  );
-                })}
+                  ))}
               </div>
             ) : (
               <div className="text-center py-16 bg-surface border border-dashed border-border rounded-2xl">
